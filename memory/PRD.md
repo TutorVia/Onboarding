@@ -1,72 +1,57 @@
 # LearnSphere - Product Requirements Document
 
 ## Original Problem Statement
-Build an educational online one-to-one tutoring platform website. Public-facing landing page with demo booking popup, visitor tracking, and admin panel for managing bookings. No auth, payments, or video integration for MVP.
+Build an educational online one-to-one tutoring platform website with public-facing pages, demo booking, visitor tracking, admin panel, email notifications, WhatsApp integration, chatbot, and multi-page architecture.
 
 ## Architecture
-- **Frontend**: React 19 + Tailwind CSS + Shadcn/UI components
-- **Backend**: FastAPI (Python) with Motor (async MongoDB driver)
+- **Frontend**: React 19 + Tailwind CSS + Shadcn/UI + React Router
+- **Backend**: FastAPI (Python) + Motor (async MongoDB) + Resend (email)
 - **Database**: MongoDB
-- **Hosting**: Kubernetes container with supervisor-managed services
-
-## User Personas
-1. **Students** (K-12, college, competitive exams) - Need personalized tutoring
-2. **Parents** - Seeking reliable tutors for children
-3. **Teachers** - Platform to connect with students (future phase)
-
-## Core Requirements
-- Beautiful public landing page with multiple sections
-- Demo booking form with validation (name, email, phone, grade, subject, date)
-- Visitor tracking (session-based, come and go)
-- Admin panel to view bookings and visitor stats
 
 ## What's Been Implemented (Feb 21, 2026)
-### Backend (server.py)
-- POST /api/demo-bookings - Create demo booking
-- GET /api/demo-bookings - List all bookings
-- DELETE /api/demo-bookings/{id} - Delete booking
-- PATCH /api/demo-bookings/{id}/status - Update booking status
-- POST /api/visitors/track - Track visitor events (visit/leave)
-- GET /api/admin/stats - Get dashboard statistics
 
-### Frontend
-- **Landing Page** with 8 sections: Hero, Subjects, How It Works, Teachers, Testimonials, FAQ, CTA, Footer
-- **Demo Modal** - Shadcn Dialog with form validation (Zod + react-hook-form), calendar date picker, select dropdowns
-- **Auto-popup** after 8 seconds for new visitors
-- **Admin Dashboard** at /admin with stats cards + bookings table + delete functionality
-- **Visitor Tracking** - Auto tracks page visits and leaves via session ID
-- **Scroll Navigation** - Smooth scrolling to sections from navbar
-- **Responsive Design** - Mobile-friendly with hamburger menu
+### Phase 1 (MVP):
+- Landing page with hero, subjects, how it works, testimonials, CTA
+- Demo booking popup with form validation + auto-popup
+- Admin panel with stats + bookings table
+- Visitor tracking (come and go)
 
-### Design
-- Theme: "Organic Growth" - Warm Paper bg (#F9F8F6), Deep Teal (#2F5D62), Burnt Orange (#DF7861)
-- Fonts: Outfit (headings), DM Sans (body), Caveat (accents)
-- Glass-morphism floating cards, decorative blobs, stagger animations
+### Phase 2 (Current):
+- **12 pages total**: Landing, Subjects, Subject Detail, Teachers, Teacher Detail, About, How It Works, FAQ, Terms, Privacy, Contact, Admin
+- **Resend email notifications** on demo bookings (placeholder API key - user adds `RESEND_API_KEY` in backend/.env)
+- **WhatsApp redirect link** after successful demo booking
+- **FAQ-based chatbot** widget (keyword matching, no AI)
+- **Subject Query Modal** for subject-specific inquiries
+- **Contact page** with phone numbers (+91-7009201851, +91-9878035355)
+- **Footer links** all navigate to real pages, Careers removed
+- **Navbar** fixed dropdown transparency, uses React Router links
+- **6 teacher profiles** with full bios, qualifications, achievements
+- **8 subject pages** with descriptions, topics, career paths, related teachers
 
-## Test Results
-- Backend: 100% (8/8 tests passed)
-- Frontend: 90% (minor auto-popup overlay noted as expected behavior)
+### Backend Endpoints:
+- POST/GET /api/demo-bookings, DELETE /api/demo-bookings/:id
+- POST/GET /api/subject-queries
+- POST/GET /api/contact-messages
+- POST /api/visitors/track, GET /api/admin/stats, GET /api/whatsapp-config
 
-## Prioritized Backlog
+## Test Results (Iteration 2)
+- Backend: 100% (13/13 tests passed)
+- Frontend: 98%
 
-### P0 - Completed (MVP)
-- [x] Landing page with all sections
-- [x] Demo booking popup with validation
-- [x] Admin panel for bookings
-- [x] Visitor tracking
+## Setup Notes
+- Add Resend API key: Set `RESEND_API_KEY=re_xxxxx` in `/app/backend/.env` and restart backend
+- Notification email: tutorviaa@gmail.com (configurable via NOTIFICATION_EMAIL in .env)
+- WhatsApp number: 917009201851 (configurable via WHATSAPP_NUMBER in .env)
 
-### P1 - Next Phase
-- [ ] Email notifications for new demo bookings (Resend/SendGrid)
-- [ ] User authentication (JWT or Google OAuth)
-- [ ] Teacher profiles with real data
-- [ ] Student dashboard
-
-### P2 - Future
+## Backlog
+### P1
+- [ ] User auth (student/teacher portals)
+- [ ] Real teacher availability & booking calendar
 - [ ] Payment integration (Stripe)
-- [ ] Live video lesson scheduling
-- [ ] Content delivery (PDF uploads, notes)
-- [ ] Booking calendar with availability management
-- [ ] Ratings & reviews
-- [ ] Analytics dashboard with charts
-- [ ] SEO optimization
-- [ ] Progressive Web App support
+
+### P2
+- [ ] Video session placeholder → real integration
+- [ ] Student dashboard & progress tracking
+- [ ] AI-powered chatbot upgrade
+- [ ] SEO optimization & meta tags
+- [ ] Ratings & reviews system
