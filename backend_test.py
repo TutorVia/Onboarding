@@ -203,9 +203,94 @@ class LearnSphereAPITester:
                 "pending_bookings" in r and
                 "total_visits" in r and
                 "total_leaves" in r and
-                "recent_bookings" in r and
+                "total_queries" in r and
+                "total_contacts" in r and
                 isinstance(r["total_bookings"], int) and
-                isinstance(r["recent_bookings"], list)
+                isinstance(r["pending_bookings"], int) and
+                isinstance(r["total_visits"], int) and
+                isinstance(r["total_leaves"], int) and
+                isinstance(r["total_queries"], int) and
+                isinstance(r["total_contacts"], int)
+            )
+        )
+
+    def test_subject_query_flow(self):
+        """Test subject query creation"""
+        test_query = {
+            "name": "Test Student",
+            "email": f"query_test_{datetime.now().strftime('%H%M%S')}@example.com",
+            "phone": "+1234567890",
+            "subject": "Mathematics",
+            "query_type": "curriculum",
+            "message": "What topics are covered in Grade 10 Mathematics?"
+        }
+        
+        create_success, create_response = self.run_test(
+            "Create Subject Query",
+            "POST",
+            "/subject-queries",
+            200,
+            data=test_query,
+            test_response_content=lambda r: (
+                "id" in r and
+                r["name"] == test_query["name"] and
+                r["subject"] == test_query["subject"]
+            )
+        )
+        
+        # Test get all queries
+        get_success, _ = self.run_test(
+            "Get Subject Queries",
+            "GET",
+            "/subject-queries",
+            200,
+            test_response_content=lambda r: isinstance(r, list)
+        )
+        
+        return create_success and get_success
+
+    def test_contact_message_flow(self):
+        """Test contact message creation"""
+        test_contact = {
+            "name": "Test Contact",
+            "email": f"contact_test_{datetime.now().strftime('%H%M%S')}@example.com",
+            "phone": "+1234567890",
+            "message": "I have a question about your tutoring services."
+        }
+        
+        create_success, create_response = self.run_test(
+            "Create Contact Message",
+            "POST",
+            "/contact-messages",
+            200,
+            data=test_contact,
+            test_response_content=lambda r: (
+                "status" in r and 
+                r["status"] == "sent" and
+                "id" in r
+            )
+        )
+        
+        get_success, _ = self.run_test(
+            "Get Contact Messages",
+            "GET",
+            "/contact-messages",
+            200,
+            test_response_content=lambda r: isinstance(r, list)
+        )
+        
+        return create_success and get_success
+
+    def test_whatsapp_config(self):
+        """Test WhatsApp configuration endpoint"""
+        return self.run_test(
+            "WhatsApp Config",
+            "GET",
+            "/whatsapp-config",
+            200,
+            test_response_content=lambda r: (
+                "whatsapp_number" in r and
+                r["whatsapp_number"] == "917009201851"
             )
         )
 
