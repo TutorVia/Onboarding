@@ -1,7 +1,6 @@
 from fastapi import FastAPI, APIRouter
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 import asyncio
@@ -10,13 +9,15 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
+from supabase import create_client, Client
 
-ROOT_DIR = Path(__file__).parent
+ROOT_DIR = Path(__file__).parent.parent
 load_dotenv(ROOT_DIR / '.env')
 
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# Supabase setup
+supabase_url = os.environ['SUPABASE_URL']
+supabase_key = os.environ['SUPABASE_ANON_KEY']
+supabase: Client = create_client(supabase_url, supabase_key)
 
 # Resend setup
 import resend
@@ -165,56 +166,86 @@ async def root():
 async def create_demo_booking(input: DemoBookingCreate):
     booking = DemoBooking(**input.model_dump())
     doc = booking.model_dump()
-    await db.demo_bookings.insert_one(doc)
+    try:
+        supabase.table('demo_bookings').insert(doc).execute()
+    except Exception as e:
+        logging.error(f"Error inserting booking: {e}")
+        return {"error": "Failed to create booking"}
     asyncio.create_task(send_booking_email(booking))
-    whatsapp_link = f"https://wa.me/{WHATSAPP_NUMBER}?text=Hi%2C%20I%20just%20booked%20a%20demo%20session%20on%20LearnSphere.%20My%20name%20is%20{booking.name.replace(' ', '%20')}%20and%20I'm%20interested%20in%20{booking.subject_interest.replace(' ', '%20')}."
+    whatsapp_link = f"https://wa.me/{WHATSAPP_NUMBER}?text=Hi%2C%20I%20just%20booked%20a%20demo%20session%20on%20TutorVia.%20My%20name%20is%20{booking.name.replace(' ', '%20')}%20and%20I'm%20interested%20in%20{booking.subject_interest.replace(' ', '%20')}."
     return booking
 
 @api_router.get("/demo-bookings", response_model=List[DemoBooking])
 async def get_demo_bookings():
-    bookings = await db.demo_bookings.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
-    return bookings
+    try:
+        response = supabase.table('demo_bookings').select("*").order('created_at', desc=True).execute()
+        return response.data
+    except Exception as e:
+        logging.error(f"Error fetching bookings: {e}")
+        return []
 
 @api_router.delete("/demo-bookings/{booking_id}")
 async def delete_demo_booking(booking_id: str):
-    result = await db.demo_bookings.delete_one({"id": booking_id})
-    if result.deleted_count == 0:
-        return {"error": "Booking not found"}
-    return {"message": "Booking deleted"}
+    try:
+        result = supabase.table('demo_bookings').delete().eq('id', booking_id).execute()
+        if not result.data:
+            return {"error": "Booking not found"}
+        return {"message": "Booking deleted"}
+    except Exception as e:
+        logging.error(f"Error deleting booking: {e}")
+        return {"error": "Failed to delete booking"}
 
 @api_router.patch("/demo-bookings/{booking_id}/status")
 async def update_booking_status(booking_id: str, status: str):
-    result = await db.demo_bookings.update_one(
-        {"id": booking_id}, {"$set": {"status": status}}
-    )
-    if result.matched_count == 0:
-        return {"error": "Booking not found"}
-    return {"message": "Status updated"}
+    try:
+        result = supabase.table('demo_bookings').update({"status": status}).eq('id', booking_id).execute()
+        if not result.data:
+            return {"error": "Booking not found"}
+        return {"message": "Status updated"}
+    except Exception as e:
+        logging.error(f"Error updating booking: {e}")
+        return {"error": "Failed to update booking"}
 
 @api_router.post("/subject-queries", response_model=SubjectQuery)
 async def create_subject_query(input: SubjectQueryCreate):
     query = SubjectQuery(**input.model_dump())
     doc = query.model_dump()
-    await db.subject_queries.insert_one(doc)
+    try:
+        supabase.table('subject_queries').insert(doc).execute()
+    except Exception as e:
+        logging.error(f"Error inserting query: {e}")
+        return {"error": "Failed to create query"}
     asyncio.create_task(send_query_email(query))
     return query
 
 @api_router.get("/subject-queries")
 async def get_subject_queries():
-    queries = await db.subject_queries.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
-    return queries
+    try:
+        response = supabase.table('subject_queries').select("*").order('created_at', desc=True).execute()
+        return response.data
+    except Exception as e:
+        logging.error(f"Error fetching queries: {e}")
+        return []
 
 @api_router.post("/contact-messages")
 async def create_contact_message(input: ContactMessageCreate):
     msg = ContactMessage(**input.model_dump())
     doc = msg.model_dump()
-    await db.contact_messages.insert_one(doc)
+    try:
+        supabase.table('contact_messages').insert(doc).execute()
+    except Exception as e:
+        logging.error(f"Error inserting message: {e}")
+        return {"error": "Failed to send message"}
     return {"status": "sent", "id": msg.id}
 
 @api_router.get("/contact-messages")
 async def get_contact_messages():
-    messages = await db.contact_messages.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
-    return messages
+    try:
+        response = supabase.table('contact_messages').select("*").order('created_at', desc=True).execute()
+        return response.data
+    except Exception as e:
+        logging.error(f"Error fetching messages: {e}")
+        return []
 
 @api_router.post("/visitors/track")
 async def track_visitor(input: VisitorEventCreate):
@@ -227,25 +258,41 @@ async def track_visitor(input: VisitorEventCreate):
         "referrer": input.referrer,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
-    await db.visitor_events.insert_one(doc)
+    try:
+        supabase.table('visitor_events').insert(doc).execute()
+    except Exception as e:
+        logging.error(f"Error tracking visitor: {e}")
+        return {"status": "error"}
     return {"status": "tracked"}
 
 @api_router.get("/admin/stats")
 async def get_admin_stats():
-    total_bookings = await db.demo_bookings.count_documents({})
-    pending_bookings = await db.demo_bookings.count_documents({"status": "pending"})
-    total_visits = await db.visitor_events.count_documents({"event_type": "visit"})
-    total_leaves = await db.visitor_events.count_documents({"event_type": "leave"})
-    total_queries = await db.subject_queries.count_documents({})
-    total_contacts = await db.contact_messages.count_documents({})
-    return {
-        "total_bookings": total_bookings,
-        "pending_bookings": pending_bookings,
-        "total_visits": total_visits,
-        "total_leaves": total_leaves,
-        "total_queries": total_queries,
-        "total_contacts": total_contacts,
-    }
+    try:
+        bookings_response = supabase.table('demo_bookings').select("id", count='exact').execute()
+        pending_response = supabase.table('demo_bookings').select("id", count='exact').eq('status', 'pending').execute()
+        visits_response = supabase.table('visitor_events').select("id", count='exact').eq('event_type', 'visit').execute()
+        leaves_response = supabase.table('visitor_events').select("id", count='exact').eq('event_type', 'leave').execute()
+        queries_response = supabase.table('subject_queries').select("id", count='exact').execute()
+        contacts_response = supabase.table('contact_messages').select("id", count='exact').execute()
+        
+        return {
+            "total_bookings": bookings_response.count or 0,
+            "pending_bookings": pending_response.count or 0,
+            "total_visits": visits_response.count or 0,
+            "total_leaves": leaves_response.count or 0,
+            "total_queries": queries_response.count or 0,
+            "total_contacts": contacts_response.count or 0,
+        }
+    except Exception as e:
+        logging.error(f"Error fetching stats: {e}")
+        return {
+            "total_bookings": 0,
+            "pending_bookings": 0,
+            "total_visits": 0,
+            "total_leaves": 0,
+            "total_queries": 0,
+            "total_contacts": 0,
+        }
 
 @api_router.get("/whatsapp-config")
 async def get_whatsapp_config():
@@ -263,7 +310,3 @@ app.add_middleware(
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
