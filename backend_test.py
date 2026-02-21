@@ -310,6 +310,15 @@ def main():
     print("\n📋 Testing Demo Booking Flow...")
     tester.test_demo_booking_flow()
     
+    print("\n❓ Testing Subject Query Flow...")
+    tester.test_subject_query_flow()
+    
+    print("\n📧 Testing Contact Message Flow...")
+    tester.test_contact_message_flow()
+    
+    print("\n📱 Testing WhatsApp Config...")
+    tester.test_whatsapp_config()
+    
     print("\n📈 Testing Admin Stats...")
     tester.test_admin_stats()
     
