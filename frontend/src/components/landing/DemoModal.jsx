@@ -5,7 +5,7 @@ import { z } from "zod";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import axios from "axios";
-import { CalendarDays, CheckCircle2, Loader2 } from "lucide-react";
+import { CalendarDays, CheckCircle2, Loader2, MessageCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const WHATSAPP_NUMBER = "917009201851";
 
 const demoSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -26,28 +27,31 @@ const demoSchema = z.object({
   message: z.string().optional(),
 });
 
-const gradeOptions = [
-  "Grade 1-5", "Grade 6-8", "Grade 9-10", "Grade 11-12", "College", "Competitive Exams", "Other"
-];
-const subjectOptions = [
-  "Mathematics", "Physics", "Chemistry", "Biology", "English", "Computer Science", "History", "Music", "Other"
-];
+const gradeOptions = ["Grade 1-5", "Grade 6-8", "Grade 9-10", "Grade 11-12", "College", "Competitive Exams", "Other"];
+const subjectOptions = ["Mathematics", "Physics", "Chemistry", "Biology", "English", "Computer Science", "History", "Music", "Other"];
 
-export const DemoModal = ({ open, onOpenChange }) => {
+export const DemoModal = ({ open, onOpenChange, defaultSubject = "" }) => {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [bookingName, setBookingName] = useState("");
 
-  const { register, handleSubmit, setValue, formState: { errors }, reset, watch } = useForm({
+  const { register, handleSubmit, setValue, formState: { errors }, reset } = useForm({
     resolver: zodResolver(demoSchema),
-    defaultValues: { name: "", email: "", phone: "", grade_level: "", subject_interest: "", preferred_date: "", message: "" },
+    defaultValues: { name: "", email: "", phone: "", grade_level: "", subject_interest: defaultSubject, preferred_date: "", message: "" },
   });
+
+  // Set default subject when prop changes
+  useState(() => {
+    if (defaultSubject) setValue("subject_interest", defaultSubject);
+  }, [defaultSubject]);
 
   const onSubmit = async (data) => {
     setLoading(true);
     try {
       await axios.post(`${API}/demo-bookings`, data);
+      setBookingName(data.name);
       setSubmitted(true);
       toast.success("Demo booked successfully! We'll reach out shortly.");
       reset();
@@ -60,13 +64,11 @@ export const DemoModal = ({ open, onOpenChange }) => {
   };
 
   const handleClose = (val) => {
-    if (!val) {
-      setSubmitted(false);
-      reset();
-      setSelectedDate(null);
-    }
+    if (!val) { setSubmitted(false); reset(); setSelectedDate(null); setBookingName(""); }
     onOpenChange(val);
   };
+
+  const whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hi, I just booked a demo session on LearnSphere. My name is ${bookingName}. Looking forward to the session!`)}`;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -83,13 +85,24 @@ export const DemoModal = ({ open, onOpenChange }) => {
         </DialogHeader>
 
         {submitted ? (
-          <div className="flex flex-col items-center py-8 gap-4" data-testid="demo-success">
+          <div className="flex flex-col items-center py-6 gap-4" data-testid="demo-success">
             <CheckCircle2 className="w-16 h-16 text-[#2F5D62]" />
             <p className="text-center text-[#2C3333] font-medium">We received your booking request!</p>
+            <a
+              href={whatsappLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="demo-whatsapp-btn"
+              className="flex items-center gap-2 bg-[#25D366] hover:bg-[#20BD5A] text-white rounded-full px-6 py-2.5 font-medium transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+            >
+              <MessageCircle className="w-5 h-5" />
+              Chat on WhatsApp
+            </a>
             <Button
               data-testid="demo-close-btn"
               onClick={() => handleClose(false)}
-              className="bg-[#2F5D62] hover:bg-[#23464A] text-white rounded-full mt-2"
+              variant="outline"
+              className="border-[#E2E0D6] text-[#2C3333] rounded-full"
             >
               Close
             </Button>
@@ -111,7 +124,7 @@ export const DemoModal = ({ open, onOpenChange }) => {
 
             <div className="space-y-1.5">
               <Label htmlFor="phone" className="text-[#2C3333] text-sm">Phone Number *</Label>
-              <Input id="phone" data-testid="demo-phone-input" placeholder="+1 234 567 8900" {...register("phone")} className="bg-white border-[#E2E0D6] focus-visible:ring-[#2F5D62]" />
+              <Input id="phone" data-testid="demo-phone-input" placeholder="+91 XXXXX XXXXX" {...register("phone")} className="bg-white border-[#E2E0D6] focus-visible:ring-[#2F5D62]" />
               {errors.phone && <p className="text-xs text-red-500">{errors.phone.message}</p>}
             </div>
 
@@ -119,28 +132,16 @@ export const DemoModal = ({ open, onOpenChange }) => {
               <div className="space-y-1.5">
                 <Label className="text-[#2C3333] text-sm">Grade Level *</Label>
                 <Select onValueChange={(val) => setValue("grade_level", val, { shouldValidate: true })}>
-                  <SelectTrigger data-testid="demo-grade-select" className="bg-white border-[#E2E0D6]">
-                    <SelectValue placeholder="Select grade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {gradeOptions.map((g) => (
-                      <SelectItem key={g} value={g}>{g}</SelectItem>
-                    ))}
-                  </SelectContent>
+                  <SelectTrigger data-testid="demo-grade-select" className="bg-white border-[#E2E0D6]"><SelectValue placeholder="Select grade" /></SelectTrigger>
+                  <SelectContent>{gradeOptions.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
                 </Select>
                 {errors.grade_level && <p className="text-xs text-red-500">{errors.grade_level.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-[#2C3333] text-sm">Subject *</Label>
-                <Select onValueChange={(val) => setValue("subject_interest", val, { shouldValidate: true })}>
-                  <SelectTrigger data-testid="demo-subject-select" className="bg-white border-[#E2E0D6]">
-                    <SelectValue placeholder="Select subject" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subjectOptions.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
+                <Select defaultValue={defaultSubject} onValueChange={(val) => setValue("subject_interest", val, { shouldValidate: true })}>
+                  <SelectTrigger data-testid="demo-subject-select" className="bg-white border-[#E2E0D6]"><SelectValue placeholder="Select subject" /></SelectTrigger>
+                  <SelectContent>{subjectOptions.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                 </Select>
                 {errors.subject_interest && <p className="text-xs text-red-500">{errors.subject_interest.message}</p>}
               </div>
@@ -150,11 +151,7 @@ export const DemoModal = ({ open, onOpenChange }) => {
               <Label className="text-[#2C3333] text-sm">Preferred Date *</Label>
               <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger asChild>
-                  <Button
-                    data-testid="demo-date-trigger"
-                    variant="outline"
-                    className={`w-full justify-start text-left font-normal bg-white border-[#E2E0D6] ${!selectedDate ? "text-[#6B7280]" : "text-[#2C3333]"}`}
-                  >
+                  <Button data-testid="demo-date-trigger" variant="outline" className={`w-full justify-start text-left font-normal bg-white border-[#E2E0D6] ${!selectedDate ? "text-[#6B7280]" : "text-[#2C3333]"}`}>
                     <CalendarDays className="mr-2 h-4 w-4" />
                     {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
                   </Button>
@@ -164,11 +161,7 @@ export const DemoModal = ({ open, onOpenChange }) => {
                     data-testid="demo-calendar"
                     mode="single"
                     selected={selectedDate}
-                    onSelect={(date) => {
-                      setSelectedDate(date);
-                      setValue("preferred_date", date ? format(date, "yyyy-MM-dd") : "", { shouldValidate: true });
-                      setCalendarOpen(false);
-                    }}
+                    onSelect={(date) => { setSelectedDate(date); setValue("preferred_date", date ? format(date, "yyyy-MM-dd") : "", { shouldValidate: true }); setCalendarOpen(false); }}
                     disabled={(date) => date < new Date()}
                     initialFocus
                   />
@@ -179,21 +172,10 @@ export const DemoModal = ({ open, onOpenChange }) => {
 
             <div className="space-y-1.5">
               <Label htmlFor="message" className="text-[#2C3333] text-sm">Message (Optional)</Label>
-              <textarea
-                id="message"
-                data-testid="demo-message-input"
-                {...register("message")}
-                placeholder="Any specific topics or goals you'd like to discuss?"
-                className="flex min-h-[80px] w-full rounded-md border border-[#E2E0D6] bg-white px-3 py-2 text-sm placeholder:text-[#6B7280] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#2F5D62] resize-none"
-              />
+              <textarea id="message" data-testid="demo-message-input" {...register("message")} placeholder="Any specific topics or goals?" className="flex min-h-[70px] w-full rounded-md border border-[#E2E0D6] bg-white px-3 py-2 text-sm placeholder:text-[#6B7280] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#2F5D62] resize-none" />
             </div>
 
-            <Button
-              data-testid="demo-submit-btn"
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#2F5D62] hover:bg-[#23464A] text-white rounded-full h-11 shadow-md hover:shadow-lg transition-all duration-300"
-            >
+            <Button data-testid="demo-submit-btn" type="submit" disabled={loading} className="w-full bg-[#2F5D62] hover:bg-[#23464A] text-white rounded-full h-11 shadow-md hover:shadow-lg transition-all duration-300">
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               {loading ? "Booking..." : "Book My Free Demo"}
             </Button>
